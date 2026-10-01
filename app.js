@@ -1,6 +1,6 @@
 // ====== CONFIGURE AQUI (Supabase → Settings → API) ======
-const SUPABASE_URL = 'https://rmdlpzgqtmcmnurvycsu.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_fM_-doHrGQWB7tOe_lykww_-p6w4ZwH';
+const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
+const SUPABASE_ANON_KEY = 'SUA_CHAVE_ANON';
 // ========================================================
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -39,8 +39,10 @@ function status(e, revs) {
 
 /* ---------- telas ---------- */
 function viewLogin() {
-  app.innerHTML = `<main style="max-width:420px;padding-top:64px">
-    <h1>Controle de Máquinas</h1>
+  app.innerHTML = `<main class="login">
+    <div class="faixa"></div>
+    <h1 style="margin-top:20px">Controle de Máquinas</h1>
+    <p class="muted" style="margin:0 0 20px">Frota, revisões e abastecimento</p>
     <form class="card" data-form="login" style="display:grid;gap:12px">
       <label>E-mail<input name="email" type="email" required></label>
       <label>Senha<input name="senha" type="password" required minlength="6"></label>
@@ -70,8 +72,8 @@ async function viewPainel() {
       return `<a class="item ${cor}" href="#/eq/${q.id}">
         <strong>${esc(q.nome)}</strong>
         <div><small>${esc(q.tipo)}${q.placa ? ' • ' + esc(q.placa) : ''}</small></div>
-        <div>${fmt(q.leitura_atual)} ${un(q)}</div>
-        <div class="badge">${txt}</div></a>`;
+        <div class="leitura">${fmt(q.leitura_atual)} <span>${un(q)}</span></div>
+        <span class="pill ${cor}">${txt}</span></a>`;
     }).join('')}</div>
 
     <h2 style="margin-top:32px">Cadastrar equipamento</h2>

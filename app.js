@@ -1,7 +1,3 @@
-// ====== CONFIGURE AQUI (Supabase → Settings → API) ======
-const SUPABASE_URL = 'https://rmdlpzgqtmcmnurvycsu.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_fM_-doHrGQWB7tOe_lykww_-p6w4ZwH';
-// ========================================================
 
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const app = document.getElementById('app');
@@ -16,7 +12,8 @@ const un = (e) => (e.medicao === 'km' ? 'km' : 'h');
 const R0 = () => ({ data: hoje(), leitura: '', descricao: '', responsavel: '', custo: '' });
 const A0 = () => ({ data: hoje(), leitura: '', litros: '', valor: '' });
 const erro = (m) => { const e = document.getElementById('erro'); if (e) e.textContent = m; };
-const topo = (esq) => `<header class="top"><div><div class="esq">${esq}</div><button class="sec" data-act="sair">Sair</button></div></header>`;
+const gestor = () => S.emp && S.emp.papel !== 'operador';
+const topo = (esq) => `<header class="top"><div><div class="esq">${esq}</div><div class="esq">${gestor() ? '<a href="#/equipe">Equipe</a>' : ''}<button class="sec" data-act="sair">Sair</button></div></div></header>`;
 
 /* ---------- cálculos ---------- */
 function consumoMedio(e, abs) {
@@ -54,13 +51,13 @@ function viewLogin() {
 
 async function viewPainel() {
   const [e, r] = await Promise.all([
-    db.from('equipamentos').select('*').order('nome'),
-    db.from('revisoes').select('equipamento_id, leitura'),
+    db.from('equipamentos').select('*').eq('empresa_id', S.emp.id).order('nome'),
+    db.from('revisoes').select('equipamento_id, leitura').eq('empresa_id', S.emp.id),
   ]);
   const lista = e.data || [], revs = r.data || [];
   S.lista = lista;
   const tipos = ['Retroescavadeira', 'Motoniveladora', 'Caminhão', 'Ônibus', 'Escavadeira', 'Trator', 'Carro', 'Outro'];
-  app.innerHTML = topo('<strong>Controle de Máquinas</strong>') + `<main>
+  app.innerHTML = topo(`<strong>${esc(S.emp.nome)}</strong>`) + `<main>
     <h2>Equipamentos</h2>
     <div class="acoes">
       <button class="ghost" data-act="rel" data-tipo="xlsx" data-escopo="geral">Relatório geral (Excel)</button>
@@ -76,7 +73,7 @@ async function viewPainel() {
         <span class="pill ${cor}">${txt}</span></a>`;
     }).join('')}</div>
 
-    <h2 style="margin-top:32px">Cadastrar equipamento</h2>
+    ${gestor() ? `<h2 style="margin-top:32px">Cadastrar equipamento</h2>
     <form class="card f" data-form="eq">
       <label>Nome / identificação<input name="nome" required placeholder="Ex.: Retro 01"></label>
       <label>Tipo<select name="tipo">${tipos.map((t) => `<option>${t}</option>`).join('')}</select></label>
@@ -88,7 +85,7 @@ async function viewPainel() {
       <label>Revisão a cada (km ou h)<input name="intervalo_revisao" type="number" step="any"></label>
       <p class="erro full" id="erro"></p>
       <button type="submit">Salvar equipamento</button>
-    </form></main>`;
+    </form>` : ''}</main>`;
 }
 
 async function viewFicha(id) {
@@ -104,7 +101,7 @@ async function viewFicha(id) {
 
 function renderFicha(rolar) {
   const { eq, revs, abs, r, a, editRev, editAbs } = S, u = un(eq);
-  const consumo = consumoMedio(eq, abs), ult = revs[0];
+  const consumo = consumoMedio(eq, abs), ult = revs[0], g = gestor();
   app.innerHTML = topo(`<a href="#/painel">← Equipamentos</a><strong>${esc(eq.nome)}</strong>`) + `<main>
     <div class="card kpis">
       <div><small class="muted">Leitura atual</small><b>${fmt(eq.leitura_atual)} ${u}</b></div>
@@ -119,7 +116,7 @@ function renderFicha(rolar) {
     <p class="erro" id="erro"></p>
 
     <h2>Revisões</h2>
-    <form id="form-rev" class="card f" data-form="rev">
+    ${g ? `<form id="form-rev" class="card f" data-form="rev">
       <label>Data<input name="data" type="date" required value="${esc(r.data)}"></label>
       <label>Leitura (${u})<input name="leitura" type="number" step="any" required value="${esc(r.leitura)}"></label>
       <label>Quem fez<input name="responsavel" required value="${esc(r.responsavel)}"></label>
@@ -127,12 +124,12 @@ function renderFicha(rolar) {
       <label class="full">O que foi feito<textarea name="descricao" required rows="2">${esc(r.descricao)}</textarea></label>
       <button type="submit">${editRev ? 'Salvar alterações' : 'Registrar revisão'}</button>
       ${editRev ? '<button type="button" class="ghost" data-act="cancel-rev">Cancelar edição</button>' : ''}
-    </form>
+    </form>` : ''}
     <div class="card scroll"><table>
-      <thead><tr><th>Data</th><th>${u}</th><th>Serviço</th><th>Quem fez</th><th>Custo</th><th></th></tr></thead>
+      <thead><tr><th>Data</th><th>${u}</th><th>Serviço</th><th>Quem fez</th><th>Custo</th>${g ? '<th></th>' : ''}</tr></thead>
       <tbody>${revs.map((x) => `<tr>
         <td>${dBR(x.data)}</td><td>${fmt(x.leitura)}</td><td>${esc(x.descricao)}</td><td>${esc(x.responsavel)}</td><td>${x.custo ? 'R$ ' + fmt(x.custo) : '—'}</td>
-        <td><div class="acoes"><button class="mini" data-act="edit-rev" data-id="${x.id}">Editar</button><button class="mini del" data-act="del-rev" data-id="${x.id}">Excluir</button></div></td></tr>`).join('')
+        ${g ? `<td><div class="acoes"><button class="mini" data-act="edit-rev" data-id="${x.id}">Editar</button><button class="mini del" data-act="del-rev" data-id="${x.id}">Excluir</button></div></td>` : ''}</tr>`).join('')
         || '<tr><td colspan="6" class="muted">Nenhuma revisão registrada.</td></tr>'}</tbody>
     </table></div>
 
@@ -146,20 +143,54 @@ function renderFicha(rolar) {
       ${editAbs ? '<button type="button" class="ghost" data-act="cancel-abs">Cancelar edição</button>' : ''}
     </form>
     <div class="card scroll"><table>
-      <thead><tr><th>Data</th><th>${u}</th><th>Litros</th><th>Valor</th><th></th></tr></thead>
+      <thead><tr><th>Data</th><th>${u}</th><th>Litros</th><th>Valor</th>${g ? '<th></th>' : ''}</tr></thead>
       <tbody>${abs.map((x) => `<tr>
         <td>${dBR(x.data)}</td><td>${fmt(x.leitura)}</td><td>${fmt(x.litros)}</td><td>${x.valor ? 'R$ ' + fmt(x.valor) : '—'}</td>
-        <td><div class="acoes"><button class="mini" data-act="edit-abs" data-id="${x.id}">Editar</button><button class="mini del" data-act="del-abs" data-id="${x.id}">Excluir</button></div></td></tr>`).join('')
+        ${g ? `<td><div class="acoes"><button class="mini" data-act="edit-abs" data-id="${x.id}">Editar</button><button class="mini del" data-act="del-abs" data-id="${x.id}">Excluir</button></div></td>` : ''}</tr>`).join('')
         || '<tr><td colspan="5" class="muted">Nenhum abastecimento registrado.</td></tr>'}</tbody>
     </table></div>
-    <button class="perigo" data-act="del-eq">Excluir equipamento</button></main>`;
+    ${g ? '<button class="perigo" data-act="del-eq">Excluir equipamento</button>' : ''}</main>`;
   if (rolar) document.getElementById(rolar)?.scrollIntoView({ behavior: 'smooth' });
 }
 
-/* ---------- dados ---------- */
-async function atualizarLeitura(l) {
-  if (Number(l) > Number(S.eq.leitura_atual)) await db.from('equipamentos').update({ leitura_atual: l }).eq('id', S.id);
+function viewEmpresa() {
+  app.innerHTML = `<main class="login"><div class="faixa"></div><h1 style="margin-top:20px">Criar empresa</h1>
+    <p class="muted">Você ainda não faz parte de nenhuma empresa. Se alguém te convidou, saia e entre de novo com o e-mail do convite. Para começar a sua, informe o nome:</p>
+    <form class="card" data-form="empresa" style="display:grid;gap:12px">
+      <label>Nome da empresa<input name="nome" required></label>
+      <p class="erro" id="erro"></p>
+      <button type="submit">Criar empresa</button>
+      <a href="#" data-act="sair">Sair</a>
+    </form></main>`;
 }
+
+async function viewEquipe() {
+  if (!gestor()) { location.hash = '#/painel'; return; }
+  const [m, c] = await Promise.all([
+    db.from('membros').select('user_id, papel, email').eq('empresa_id', S.emp.id),
+    db.from('convites').select('id, email, papel').eq('empresa_id', S.emp.id),
+  ]);
+  const nomePapel = { dono: 'Dono', gerente: 'Gerente', operador: 'Operador' };
+  app.innerHTML = topo('<a href="#/painel">← Equipamentos</a><strong>Equipe</strong>') + `<main>
+    <h2>Convidar pessoa</h2>
+    <form class="card f" data-form="convite">
+      <label>E-mail da pessoa<input name="email" type="email" required></label>
+      <label>Papel<select name="papel"><option value="gerente">Gerente (vê e edita tudo)</option><option value="operador">Operador (só lança abastecimento)</option></select></label>
+      <p class="erro full" id="erro"></p>
+      <button type="submit">Convidar</button>
+    </form>
+    <p class="muted">A pessoa cria a conta no site com esse mesmo e-mail e entra direto nesta empresa.</p>
+    <h2>Quem tem acesso</h2>
+    <div class="card scroll"><table>
+      <thead><tr><th>E-mail</th><th>Papel</th><th></th></tr></thead>
+      <tbody>${(m.data || []).map((x) => `<tr><td>${esc(x.email)}</td><td>${nomePapel[x.papel]}</td>
+        <td>${x.papel === 'dono' ? '' : `<button class="mini del" data-act="del-membro" data-id="${x.user_id}">Remover</button>`}</td></tr>`).join('')}
+      ${(c.data || []).map((x) => `<tr><td>${esc(x.email)}</td><td>${nomePapel[x.papel]} <span class="pill">convite pendente</span></td>
+        <td><button class="mini del" data-act="del-convite" data-id="${x.id}">Cancelar</button></td></tr>`).join('')}</tbody>
+    </table></div></main>`;
+}
+
+/* ---------- dados ---------- */
 // Após editar/excluir: leitura atual = maior leitura registrada
 async function sincronizar() {
   const [rv, ab] = await Promise.all([
@@ -241,8 +272,18 @@ app.addEventListener('submit', async (ev) => {
     if (criar && !data.session) return erro('Conta criada. Confirme o e-mail e depois entre.');
     location.hash = '#/painel'; return rota();
   }
+  if (k === 'empresa') {
+    const { error } = await db.rpc('criar_empresa', { p_nome: d.nome });
+    if (error) return erro(error.message);
+    return rota();
+  }
+  if (k === 'convite') {
+    const { error } = await db.from('convites').insert({ empresa_id: S.emp.id, email: d.email.trim().toLowerCase(), papel: d.papel });
+    if (error) return erro(error.code === '23505' ? 'Esse e-mail já foi convidado.' : error.message);
+    return viewEquipe();
+  }
   if (k === 'eq') {
-    const { error } = await db.from('equipamentos').insert({ ...d, ano: d.ano || null, leitura_atual: d.leitura_atual || 0, intervalo_revisao: d.intervalo_revisao || null });
+    const { error } = await db.from('equipamentos').insert({ ...d, empresa_id: S.emp.id, ano: d.ano || null, leitura_atual: d.leitura_atual || 0, intervalo_revisao: d.intervalo_revisao || null });
     if (error) return erro(error.message);
     return viewPainel();
   }
@@ -250,18 +291,18 @@ app.addEventListener('submit', async (ev) => {
     const dados = { ...d, custo: d.custo || null };
     const { error } = S.editRev
       ? await db.from('revisoes').update(dados).eq('id', S.editRev)
-      : await db.from('revisoes').insert({ ...dados, equipamento_id: S.id });
+      : await db.from('revisoes').insert({ ...dados, empresa_id: S.emp.id, equipamento_id: S.id });
     if (error) return erro(error.message);
-    S.editRev ? await sincronizar() : await atualizarLeitura(d.leitura);
+    if (S.editRev) await sincronizar();
     S.r = R0(); S.editRev = null; return viewFicha(S.id);
   }
   if (k === 'abs') {
     const dados = { ...d, valor: d.valor || null };
     const { error } = S.editAbs
       ? await db.from('abastecimentos').update(dados).eq('id', S.editAbs)
-      : await db.from('abastecimentos').insert({ ...dados, equipamento_id: S.id });
+      : await db.from('abastecimentos').insert({ ...dados, empresa_id: S.emp.id, equipamento_id: S.id });
     if (error) return erro(error.message);
-    S.editAbs ? await sincronizar() : await atualizarLeitura(d.leitura);
+    if (S.editAbs) await sincronizar();
     S.a = A0(); S.editAbs = null; return viewFicha(S.id);
   }
 });
@@ -271,7 +312,7 @@ app.addEventListener('click', async (ev) => {
   if (!b) return;
   const act = b.dataset.act, id = b.dataset.id;
   if (act === 'alt') { ev.preventDefault(); criar = !criar; return viewLogin(); }
-  if (act === 'sair') { await db.auth.signOut(); location.hash = ''; return rota(); }
+  if (act === 'sair') { await db.auth.signOut(); S.emp = null; location.hash = ''; return rota(); }
   if (act === 'rel') return relatorio(b.dataset.tipo, b.dataset.escopo);
   if (act === 'edit-rev') {
     const x = S.revs.find((v) => v.id === id);
@@ -291,6 +332,15 @@ app.addEventListener('click', async (ev) => {
     if (error) return erro(error.message);
     await sincronizar(); return viewFicha(S.id);
   }
+  if (act === 'del-membro' || act === 'del-convite') {
+    if (!confirm('Remover esta pessoa?')) return;
+    const q = act === 'del-membro'
+      ? db.from('membros').delete().eq('empresa_id', S.emp.id).eq('user_id', id)
+      : db.from('convites').delete().eq('id', id);
+    const { error } = await q;
+    if (error) return erro(error.message);
+    return viewEquipe();
+  }
   if (act === 'del-eq') {
     if (!confirm('Excluir este equipamento e todo o histórico?')) return;
     await db.from('equipamentos').delete().eq('id', S.id);
@@ -302,7 +352,14 @@ app.addEventListener('click', async (ev) => {
 async function rota() {
   const { data: { session } } = await db.auth.getSession();
   if (!session) return viewLogin();
+  if (!S.emp) {
+    await db.rpc('aceitar_convites');
+    const { data } = await db.from('membros').select('papel, empresa_id, empresas(nome)').eq('user_id', session.user.id);
+    if (!data || !data.length) return viewEmpresa();
+    S.emp = { id: data[0].empresa_id, nome: data[0].empresas.nome, papel: data[0].papel };
+  }
   const h = location.hash.replace('#/', '');
+  if (h === 'equipe') return viewEquipe();
   if (h.startsWith('eq/')) { S.r = R0(); S.a = A0(); S.editRev = S.editAbs = null; return viewFicha(h.slice(3)); }
   return viewPainel();
 }
